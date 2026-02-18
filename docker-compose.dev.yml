@@ -1,0 +1,47 @@
+services:
+  finguard:
+    build: .
+    ports:
+      - "8080:8080"
+    environment:
+      FINGUARD_ADDR: ":8080"
+      FINGUARD_DB_DSN: "postgres://finguard:finguard@postgres:5432/finguard?sslmode=disable"
+      FINGUARD_OIDC_ISSUER: "http://dex:5556"
+      FINGUARD_OIDC_CLIENT_ID: "finguard"
+      FINGUARD_OIDC_CLIENT_SECRET: "finguard-dev-secret"
+      FINGUARD_OIDC_REDIRECT_URL: "http://localhost:8080/callback"
+      FINGUARD_SESSION_SECRET: "dev-session-secret-change-me-32b"
+      FINGUARD_LOG_LEVEL: "debug"
+      FINGUARD_DEV_MODE: "true"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      dex:
+        condition: service_started
+
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: finguard
+      POSTGRES_PASSWORD: finguard
+      POSTGRES_DB: finguard
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U finguard"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  dex:
+    image: ghcr.io/dexidp/dex:v2.41.1
+    ports:
+      - "5556:5556"
+    volumes:
+      - ./configs/dex.dev.yaml:/etc/dex/config.docker.yaml
+    command: ["dex", "serve", "/etc/dex/config.docker.yaml"]
+
+volumes:
+  pgdata:
