@@ -1,0 +1,28 @@
+issuer: http://localhost:5556
+
+storage:
+  type: memory
+
+web:
+  http: 0.0.0.0:5556
+
+connectors:
+  - type: mockCallback
+    id: mock
+    name: "Development Login"
+
+staticClients:
+  - id: finguard
+    name: FinGuard
+    redirectURIs:
+      - "http://localhost:8080/callback"
+      - "http://localhost:8081/callback"
+    secret: finguard-dev-secret
+
+enablePasswordDB: true
+
+staticPasswords:
+  - email: "admin@finguard.local"
+    hash: "$2a$10$2b2cU8CPhOTaGrs1HRQuAueS7JTT5ZHsHSzYiFPm1leZck7Mc8T4W"
+    username: "admin"
+    userID: "00000000-0000-0000-0000-000000000001"

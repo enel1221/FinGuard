@@ -34,7 +34,7 @@ run-all:
 	FINGUARD_OIDC_ISSUER="http://localhost:5556" \
 	FINGUARD_OIDC_CLIENT_ID="finguard" \
 	FINGUARD_OIDC_CLIENT_SECRET="finguard-dev-secret" \
-	FINGUARD_OIDC_REDIRECT_URL="http://localhost:8080/callback" \
+	FINGUARD_OIDC_REDIRECT_URL="http://localhost:$(PORT)/callback" \
 	FINGUARD_SESSION_SECRET="dev-session-secret-change-me-32b" \
 	FINGUARD_LOG_LEVEL="debug" \
 	$(AIR)
@@ -52,6 +52,7 @@ lint:
 	golangci-lint run ./...
 
 clean:
+	docker compose -f docker-compose.dev.yml down -v --remove-orphans 2>/dev/null || true
 	rm -rf bin/ tmp/ coverage.out
 
 docker-build:

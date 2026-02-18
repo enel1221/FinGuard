@@ -1,0 +1,8 @@
+DROP TABLE IF EXISTS cost_records;
+DROP TABLE IF EXISTS budgets;
+DROP TABLE IF EXISTS project_roles;
+DROP TABLE IF EXISTS group_members;
+DROP TABLE IF EXISTS groups;
+DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS cost_sources;
+DROP TABLE IF EXISTS projects;
