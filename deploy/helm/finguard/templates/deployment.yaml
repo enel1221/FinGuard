@@ -32,6 +32,33 @@ spec:
               value: {{ .Values.plugins.dir | quote }}
             - name: FINGUARD_PLUGIN_CONFIG_DIR
               value: {{ .Values.plugins.configDir | quote }}
+            - name: FINGUARD_DB_DSN
+              value: {{ .Values.database.dsn | quote }}
+            {{- if .Values.auth.enabled }}
+            - name: FINGUARD_OIDC_ISSUER
+              value: {{ .Values.auth.oidc.issuerURL | quote }}
+            - name: FINGUARD_OIDC_CLIENT_ID
+              value: {{ .Values.auth.oidc.clientID | quote }}
+            - name: FINGUARD_OIDC_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "finguard.fullname" . }}-oidc
+                  key: client-secret
+                  optional: true
+            - name: FINGUARD_OIDC_REDIRECT_URL
+              value: {{ .Values.auth.oidc.redirectURL | quote }}
+            - name: FINGUARD_OIDC_SCOPES
+              value: {{ join "," .Values.auth.oidc.scopes | quote }}
+            - name: FINGUARD_SESSION_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ include "finguard.fullname" . }}-oidc
+                  key: session-secret
+                  optional: true
+            {{- else }}
+            - name: FINGUARD_AUTH_DISABLED
+              value: "true"
+            {{- end }}
           livenessProbe:
             httpGet:
               path: /healthz
@@ -46,3 +73,14 @@ spec:
             periodSeconds: 5
           resources:
             {{- toYaml .Values.resources | nindent 12 }}
+          {{- if .Values.persistence.enabled }}
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          {{- end }}
+      {{- if .Values.persistence.enabled }}
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: {{ include "finguard.fullname" . }}-data
+      {{- end }}

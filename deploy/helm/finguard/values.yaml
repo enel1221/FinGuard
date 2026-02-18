@@ -22,6 +22,42 @@ env:
   OPENCOST_URL: "http://opencost.opencost.svc.cluster.local:9003"
   FINGUARD_LOG_LEVEL: "info"
 
+database:
+  dsn: "sqlite:///data/finguard.db"
+
+auth:
+  enabled: true
+  oidc:
+    issuerURL: ""
+    clientID: "finguard"
+    clientSecret: ""
+    redirectURL: ""
+    scopes:
+      - openid
+      - profile
+      - email
+      - groups
+    sessionSecret: ""
+
+dex:
+  enabled: false
+  image:
+    repository: ghcr.io/dexidp/dex
+    tag: v2.41.1
+  config:
+    issuer: "https://dex.example.com"
+    storage:
+      type: kubernetes
+      config:
+        inCluster: true
+    connectors: []
+    staticClients:
+      - id: finguard
+        name: FinGuard
+        redirectURIs:
+          - "https://finguard.example.com/callback"
+        secret: ""
+
 serviceAccount:
   create: true
   name: ""
@@ -37,3 +73,8 @@ opencost:
 plugins:
   dir: /opt/finguard/plugins/bin
   configDir: /opt/finguard/plugins/config
+
+persistence:
+  enabled: false
+  storageClass: ""
+  size: 1Gi

@@ -11,12 +11,21 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/inelson/finguard/internal/auth"
 	"github.com/inelson/finguard/internal/clustercache"
+	"github.com/inelson/finguard/internal/collector"
+	collectoraws "github.com/inelson/finguard/internal/collector/aws"
+	collectorazure "github.com/inelson/finguard/internal/collector/azure"
+	collectorgcp "github.com/inelson/finguard/internal/collector/gcp"
+	collectork8s "github.com/inelson/finguard/internal/collector/kubernetes"
 	"github.com/inelson/finguard/internal/config"
+	"github.com/inelson/finguard/internal/models"
 	"github.com/inelson/finguard/internal/opencostproxy"
 	pluginmgr "github.com/inelson/finguard/internal/plugin"
 	"github.com/inelson/finguard/internal/server"
+	"github.com/inelson/finguard/internal/store"
 	"github.com/inelson/finguard/internal/stream"
+	"github.com/inelson/finguard/migrations"
 	"github.com/inelson/finguard/plugins/budgets"
 	"github.com/inelson/finguard/plugins/costbreakdown"
 	"github.com/inelson/finguard/web"
@@ -38,10 +47,30 @@ func main() {
 
 	cfg := config.Load()
 	hub := stream.NewHub(logger)
-	proxy := opencostproxy.New(cfg.OpenCostURL, logger)
+
+	db, err := store.New(cfg.DatabaseDSN)
+	if err != nil {
+		logger.Error("failed to open database", "error", err)
+		os.Exit(1)
+	}
+	defer db.Close()
+
+	if err := db.Migrate(migrations.FS); err != nil {
+		logger.Error("failed to run database migrations", "error", err)
+		os.Exit(1)
+	}
+	logger.Info("database ready", "dsn", cfg.DatabaseDSN)
+
+	var proxy *opencostproxy.Proxy
+	if cfg.DevMode {
+		logger.Info("dev mode enabled, using mock OpenCost data")
+		proxy = opencostproxy.NewMock(logger)
+	} else {
+		proxy = opencostproxy.New(cfg.OpenCostURL, logger)
+	}
 
 	var cc *clustercache.Cache
-	cc, err := clustercache.New(logger)
+	cc, err = clustercache.New(logger)
 	if err != nil {
 		logger.Warn("cluster cache unavailable, running without k8s integration", "error", err)
 		cc = nil
@@ -65,12 +94,31 @@ func main() {
 		frontendFS = nil
 	}
 
-	srv := server.New(cfg, hub, proxy, cc, pm, frontendFS, logger)
+	authMgr, err := auth.NewManager(cfg, db, logger)
+	if err != nil {
+		logger.Error("failed to initialize auth manager", "error", err)
+		os.Exit(1)
+	}
+
+	// Cost collector registry and scheduler
+	collectorRegistry := collector.NewRegistry()
+	collectorRegistry.Register(models.CostSourceAWS, collectoraws.New(logger))
+	collectorRegistry.Register(models.CostSourceAzure, collectorazure.New(logger))
+	collectorRegistry.Register(models.CostSourceGCP, collectorgcp.New(logger))
+	collectorRegistry.Register(models.CostSourceKubernetes, collectork8s.New(logger))
+
+	collectorScheduler := collector.NewScheduler(collectorRegistry, db, hub, collector.DefaultSchedulerConfig(), logger)
+
+	srv := server.New(cfg, hub, proxy, cc, pm, db, authMgr, frontendFS, logger)
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	go proxy.StartHealthCheck(ctx, 30*time.Second)
+	if cfg.DevMode {
+		go proxy.StartHealthCheckMock(ctx, 30*time.Second)
+	} else {
+		go proxy.StartHealthCheck(ctx, 30*time.Second)
+	}
 
 	if cc != nil {
 		go func() {
@@ -79,6 +127,8 @@ func main() {
 			}
 		}()
 	}
+
+	go collectorScheduler.Start(ctx)
 
 	if err := pm.InitializeAll(ctx, cfg.OpenCostURL); err != nil {
 		logger.Error("failed to initialize plugins", "error", err)

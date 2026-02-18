@@ -13,34 +13,40 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	corev1 "k8s.io/api/core/v1"
 
+	"github.com/inelson/finguard/internal/auth"
 	"github.com/inelson/finguard/internal/clustercache"
 	"github.com/inelson/finguard/internal/config"
 	"github.com/inelson/finguard/internal/opencostproxy"
 	pluginmgr "github.com/inelson/finguard/internal/plugin"
+	"github.com/inelson/finguard/internal/store"
 	"github.com/inelson/finguard/internal/stream"
 	"github.com/inelson/finguard/pkg/api"
 	"github.com/inelson/finguard/pkg/event"
 )
 
 type Server struct {
-	cfg       *config.Config
-	router    chi.Router
-	hub       *stream.Hub
-	proxy     *opencostproxy.Proxy
-	cache     *clustercache.Cache
-	pluginMgr *pluginmgr.Manager
+	cfg        *config.Config
+	router     chi.Router
+	hub        *stream.Hub
+	proxy      *opencostproxy.Proxy
+	cache      *clustercache.Cache
+	pluginMgr  *pluginmgr.Manager
+	store      store.Store
+	auth       *auth.Manager
 	frontendFS fs.FS
-	logger    *slog.Logger
-	http      *http.Server
+	logger     *slog.Logger
+	http       *http.Server
 }
 
-func New(cfg *config.Config, hub *stream.Hub, proxy *opencostproxy.Proxy, cc *clustercache.Cache, pm *pluginmgr.Manager, frontendFS fs.FS, logger *slog.Logger) *Server {
+func New(cfg *config.Config, hub *stream.Hub, proxy *opencostproxy.Proxy, cc *clustercache.Cache, pm *pluginmgr.Manager, st store.Store, am *auth.Manager, frontendFS fs.FS, logger *slog.Logger) *Server {
 	s := &Server{
 		cfg:        cfg,
 		hub:        hub,
 		proxy:      proxy,
 		cache:      cc,
 		pluginMgr:  pm,
+		store:      st,
+		auth:       am,
 		frontendFS: frontendFS,
 		logger:     logger,
 	}
@@ -69,7 +75,18 @@ func (s *Server) routes() chi.Router {
 	r.Get("/healthz", s.handleHealthz)
 	r.Get("/readyz", s.handleReadyz)
 
+	// Auth routes (no middleware)
+	if s.auth != nil {
+		r.Get("/login", s.auth.HandleLogin)
+		r.Get("/callback", s.auth.HandleCallback)
+		r.Get("/logout", s.auth.HandleLogout)
+	}
+
 	r.Route("/api/v1", func(r chi.Router) {
+		if s.auth != nil && !s.auth.IsDisabled() {
+			r.Use(s.auth.Middleware)
+		}
+		r.Get("/me", s.handleMe)
 		r.Get("/stream", s.handleStream)
 
 		// OpenCost proxy endpoints
@@ -83,6 +100,23 @@ func (s *Server) routes() chi.Router {
 		r.Get("/namespaces", s.handleNamespaces)
 		r.Get("/nodes", s.handleNodes)
 		r.Get("/health", s.handleDetailedHealth)
+
+		// Project endpoints
+		r.Post("/projects", s.handleCreateProject)
+		r.Get("/projects", s.handleListProjects)
+		r.Route("/projects/{projectID}", func(r chi.Router) {
+			r.Get("/", s.handleGetProject)
+			r.Put("/", s.handleUpdateProject)
+			r.Delete("/", s.handleDeleteProject)
+			r.Post("/sources", s.handleCreateCostSource)
+			r.Get("/sources", s.handleListCostSources)
+			r.Get("/sources/{sourceID}", s.handleGetCostSource)
+			r.Delete("/sources/{sourceID}", s.handleDeleteCostSource)
+			r.Get("/costs", s.handleGetProjectCosts)
+			r.Post("/members", s.handleAddProjectMember)
+			r.Get("/members", s.handleListProjectMembers)
+			r.Delete("/members/{subjectID}", s.handleRemoveProjectMember)
+		})
 
 		// Plugin endpoints
 		r.Get("/plugins", s.handleListPlugins)
@@ -114,6 +148,14 @@ func (s *Server) Start() error {
 func (s *Server) Shutdown(ctx context.Context) error {
 	s.logger.Info("shutting down server")
 	return s.http.Shutdown(ctx)
+}
+
+func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) {
+	if s.auth != nil {
+		s.auth.HandleUserInfo(w, r)
+		return
+	}
+	writeJSON(w, http.StatusOK, map[string]string{"status": "auth disabled"})
 }
 
 func (s *Server) handleHealthz(w http.ResponseWriter, r *http.Request) {

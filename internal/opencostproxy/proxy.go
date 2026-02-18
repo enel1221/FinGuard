@@ -18,6 +18,7 @@ type Proxy struct {
 	logger     *slog.Logger
 	mu         sync.RWMutex
 	healthy    bool
+	mock       *MockProxy
 }
 
 func New(baseURL string, logger *slog.Logger) *Proxy {
@@ -72,21 +73,37 @@ func (p *Proxy) checkHealth(ctx context.Context) bool {
 
 // ProxyAllocation proxies GET /allocation to OpenCost.
 func (p *Proxy) ProxyAllocation(w http.ResponseWriter, r *http.Request) {
+	if p.mock != nil {
+		p.mock.handleAllocation(w, r)
+		return
+	}
 	p.proxyRequest(w, r, "/allocation")
 }
 
 // ProxyAssets proxies GET /assets to OpenCost.
 func (p *Proxy) ProxyAssets(w http.ResponseWriter, r *http.Request) {
+	if p.mock != nil {
+		p.mock.handleAssets(w, r)
+		return
+	}
 	p.proxyRequest(w, r, "/assets")
 }
 
 // ProxyCloudCost proxies GET /cloudCost to OpenCost.
 func (p *Proxy) ProxyCloudCost(w http.ResponseWriter, r *http.Request) {
+	if p.mock != nil {
+		p.mock.handleCloudCost(w, r)
+		return
+	}
 	p.proxyRequest(w, r, "/cloudCost")
 }
 
 // ProxyCustomCost proxies GET /customCost/total to OpenCost.
 func (p *Proxy) ProxyCustomCost(w http.ResponseWriter, r *http.Request) {
+	if p.mock != nil {
+		p.mock.handleCustomCost(w, r)
+		return
+	}
 	p.proxyRequest(w, r, "/customCost/total")
 }
 
