@@ -1,0 +1,9 @@
+[submodule "opencost"]
+	path = opencost
+	url = git@github.com:opencost/opencost.git
+[submodule "headlamp"]
+	path = headlamp
+	url = git@github.com:kubernetes-sigs/headlamp.git
+[submodule "argo-cd"]
+	path = argo-cd
+	url = git@github.com:argoproj/argo-cd.git
