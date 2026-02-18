@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FinGuard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0f1117; --surface: #1a1d27; --surface2: #232733;
+      --border: #2d3140; --text: #e4e6ed; --text-muted: #8b8fa3;
+      --primary: #6366f1; --primary-light: #818cf8;
+      --green: #22c55e; --yellow: #eab308; --red: #ef4444;
+      --radius: 8px;
+    }
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); line-height: 1.5; }
+    .app { display: flex; min-height: 100vh; }
+    .sidebar { width: 220px; background: var(--surface); border-right: 1px solid var(--border); padding: 1rem 0; display: flex; flex-direction: column; }
+    .sidebar-logo { padding: 0 1rem 1.5rem; font-size: 1.25rem; font-weight: 700; color: var(--primary-light); }
+    .sidebar-nav { list-style: none; flex: 1; }
+    .sidebar-nav li { padding: 0.6rem 1rem; cursor: pointer; color: var(--text-muted); transition: all 0.15s; border-left: 3px solid transparent; }
+    .sidebar-nav li:hover { background: var(--surface2); color: var(--text); }
+    .sidebar-nav li.active { background: var(--surface2); color: var(--primary-light); border-left-color: var(--primary); }
+    .main { flex: 1; padding: 1.5rem 2rem; overflow-y: auto; }
+    .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1.5rem; }
+    .header h1 { font-size: 1.5rem; font-weight: 600; }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+    .status-dot.connected { background: var(--green); }
+    .status-dot.disconnected { background: var(--red); }
+    .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 1rem; margin-bottom: 1.5rem; }
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem; }
+    .card-label { font-size: 0.8rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 0.25rem; }
+    .card-value { font-size: 1.75rem; font-weight: 700; }
+    .card-value.green { color: var(--green); } .card-value.yellow { color: var(--yellow); } .card-value.red { color: var(--red); }
+    .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 1.25rem; margin-bottom: 1.5rem; }
+    .panel-title { font-size: 1rem; font-weight: 600; margin-bottom: 1rem; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 0.6rem 0.75rem; text-align: left; border-bottom: 1px solid var(--border); font-size: 0.875rem; }
+    th { color: var(--text-muted); font-weight: 500; }
+    .badge { display: inline-block; padding: 0.15rem 0.5rem; border-radius: 999px; font-size: 0.75rem; font-weight: 600; }
+    .badge-ok { background: #16412a; color: var(--green); } .badge-warning { background: #422006; color: var(--yellow); } .badge-exceeded { background: #451215; color: var(--red); }
+    .events { max-height: 300px; overflow-y: auto; }
+    .event-item { padding: 0.5rem 0; border-bottom: 1px solid var(--border); font-size: 0.85rem; display: flex; gap: 0.75rem; }
+    .event-time { color: var(--text-muted); white-space: nowrap; min-width: 80px; }
+    .event-topic { color: var(--primary-light); min-width: 120px; }
+    .hidden { display: none; }
+    canvas { max-height: 300px; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar">
+      <div class="sidebar-logo">FinGuard</div>
+      <ul class="sidebar-nav">
+        <li class="active" data-page="dashboard">Dashboard</li>
+        <li data-page="recommendations">Recommendations</li>
+        <li data-page="budgets">Budgets</li>
+        <li data-page="plugins">Plugins</li>
+      </ul>
+      <div style="padding: 1rem; font-size: 0.75rem; color: var(--text-muted);">
+        <span class="status-dot disconnected" id="ws-status"></span>
+        <span id="ws-label">Disconnected</span>
+      </div>
+    </aside>
+    <main class="main">
+      <!-- Dashboard -->
+      <div id="page-dashboard">
+        <div class="header"><h1>Dashboard</h1></div>
+        <div class="cards">
+          <div class="card"><div class="card-label">Namespaces</div><div class="card-value" id="stat-ns">--</div></div>
+          <div class="card"><div class="card-label">Nodes</div><div class="card-value" id="stat-nodes">--</div></div>
+          <div class="card"><div class="card-label">Pods</div><div class="card-value" id="stat-pods">--</div></div>
+          <div class="card"><div class="card-label">OpenCost</div><div class="card-value" id="stat-oc">--</div></div>
+        </div>
+        <div class="panel"><div class="panel-title">Cluster Nodes</div><div id="nodes-table"></div></div>
+        <div class="panel"><div class="panel-title">Live Events</div><div class="events" id="events-list"><div style="color:var(--text-muted)">Waiting for events...</div></div></div>
+      </div>
+
+      <!-- Recommendations -->
+      <div id="page-recommendations" class="hidden">
+        <div class="header"><h1>Recommendations</h1></div>
+        <div class="panel"><div class="panel-title">Idle Resource Recommendations</div><div id="recs-table"></div></div>
+      </div>
+
+      <!-- Budgets -->
+      <div id="page-budgets" class="hidden">
+        <div class="header"><h1>Budgets</h1></div>
+        <div class="panel"><div class="panel-title">Budget Status</div><canvas id="budget-chart"></canvas></div>
+        <div class="panel"><div id="budget-table"></div></div>
+      </div>
+
+      <!-- Plugins -->
+      <div id="page-plugins" class="hidden">
+        <div class="header"><h1>Plugins</h1></div>
+        <div class="panel"><div id="plugins-table"></div></div>
+      </div>
+    </main>
+  </div>
+
+  <script>
+    const API = '/api/v1';
+    let ws = null;
+    let budgetChart = null;
+    const events = [];
+
+    // Navigation
+    document.querySelectorAll('.sidebar-nav li').forEach(li => {
+      li.addEventListener('click', () => {
+        document.querySelectorAll('.sidebar-nav li').forEach(l => l.classList.remove('active'));
+        li.classList.add('active');
+        document.querySelectorAll('[id^="page-"]').forEach(p => p.classList.add('hidden'));
+        document.getElementById('page-' + li.dataset.page).classList.remove('hidden');
+        loadPage(li.dataset.page);
+      });
+    });
+
+    function loadPage(page) {
+      switch (page) {
+        case 'dashboard': loadDashboard(); break;
+        case 'recommendations': loadRecommendations(); break;
+        case 'budgets': loadBudgets(); break;
+        case 'plugins': loadPlugins(); break;
+      }
+    }
+
+    async function loadDashboard() {
+      try {
+        const [health, cluster] = await Promise.all([
+          fetch(API + '/health').then(r => r.json()),
+          fetch(API + '/cluster').then(r => r.json()).catch(() => null)
+        ]);
+        document.getElementById('stat-oc').textContent = health.services?.opencost || 'n/a';
+        document.getElementById('stat-oc').className = 'card-value ' + (health.services?.opencost === 'healthy' ? 'green' : 'yellow');
+        if (cluster) {
+          document.getElementById('stat-ns').textContent = cluster.namespaceCount || 0;
+          document.getElementById('stat-nodes').textContent = cluster.nodeCount || 0;
+          document.getElementById('stat-pods').textContent = cluster.podCount || 0;
+          renderNodesTable(cluster.nodes || []);
+        }
+      } catch (e) { console.error('dashboard load error:', e); }
+    }
+
+    function renderNodesTable(nodes) {
+      if (!nodes.length) { document.getElementById('nodes-table').innerHTML = '<div style="color:var(--text-muted)">No cluster connection</div>'; return; }
+      document.getElementById('nodes-table').innerHTML = `<table><thead><tr><th>Name</th><th>Instance Type</th><th>Region</th><th>CPU</th><th>Memory</th></tr></thead><tbody>${
+        nodes.map(n => `<tr><td>${n.name}</td><td>${n.instanceType||'--'}</td><td>${n.region||'--'}</td><td>${n.allocatableCPU}</td><td>${n.allocatableMemory}</td></tr>`).join('')
+      }</tbody></table>`;
+    }
+
+    async function loadRecommendations() {
+      try {
+        const data = await fetch(API + '/plugins/costbreakdown/recommendations').then(r => r.json());
+        const recs = data.recommendations || [];
+        document.getElementById('recs-table').innerHTML = recs.length === 0
+          ? '<div style="color:var(--text-muted)">No recommendations yet. Waiting for OpenCost data.</div>'
+          : `<table><thead><tr><th>Namespace</th><th>Resource</th><th>Requested</th><th>Used</th><th>Est. Savings</th><th>Severity</th></tr></thead><tbody>${
+            recs.map(r => `<tr><td>${r.namespace}</td><td>${r.resourceType}</td><td>${r.requested.toFixed(3)}</td><td>${r.used.toFixed(3)}</td><td>$${r.estimatedSavings.toFixed(2)}</td><td><span class="badge badge-${r.severity === 'high' ? 'exceeded' : r.severity === 'medium' ? 'warning' : 'ok'}">${r.severity}</span></td></tr>`).join('')
+          }</tbody></table>`;
+      } catch (e) { document.getElementById('recs-table').innerHTML = '<div style="color:var(--text-muted)">Failed to load recommendations.</div>'; }
+    }
+
+    async function loadBudgets() {
+      try {
+        const data = await fetch(API + '/plugins/budgets/status').then(r => r.json());
+        const budgets = data.budgets || [];
+        document.getElementById('budget-table').innerHTML = budgets.length === 0
+          ? '<div style="color:var(--text-muted)">No budget data yet.</div>'
+          : `<table><thead><tr><th>Namespace</th><th>Budget</th><th>Spend</th><th>Utilization</th><th>Projected</th><th>Status</th></tr></thead><tbody>${
+            budgets.map(b => `<tr><td>${b.namespace}</td><td>$${b.monthlyBudget.toFixed(2)}</td><td>$${b.currentSpend.toFixed(2)}</td><td>${(b.utilization*100).toFixed(1)}%</td><td>$${b.projectedEndOfMonth.toFixed(2)}</td><td><span class="badge badge-${b.status}">${b.status}</span></td></tr>`).join('')
+          }</tbody></table>`;
+        renderBudgetChart(budgets);
+      } catch (e) { document.getElementById('budget-table').innerHTML = '<div style="color:var(--text-muted)">Failed to load budget data.</div>'; }
+    }
+
+    function renderBudgetChart(budgets) {
+      const ctx = document.getElementById('budget-chart');
+      if (budgetChart) budgetChart.destroy();
+      if (!budgets.length) return;
+      budgetChart = new Chart(ctx, {
+        type: 'bar',
+        data: {
+          labels: budgets.map(b => b.namespace),
+          datasets: [
+            { label: 'Budget', data: budgets.map(b => b.monthlyBudget), backgroundColor: 'rgba(99,102,241,0.3)', borderColor: '#6366f1', borderWidth: 1 },
+            { label: 'Current Spend', data: budgets.map(b => b.currentSpend), backgroundColor: budgets.map(b => b.status === 'exceeded' ? 'rgba(239,68,68,0.5)' : b.status === 'warning' ? 'rgba(234,179,8,0.5)' : 'rgba(34,197,94,0.5)'), borderWidth: 0 }
+          ]
+        },
+        options: {
+          responsive: true, plugins: { legend: { labels: { color: '#8b8fa3' } } },
+          scales: { x: { ticks: { color: '#8b8fa3' }, grid: { color: '#2d3140' } }, y: { ticks: { color: '#8b8fa3', callback: v => '$' + v }, grid: { color: '#2d3140' } } }
+        }
+      });
+    }
+
+    async function loadPlugins() {
+      try {
+        const data = await fetch(API + '/plugins').then(r => r.json());
+        const plugins = data.plugins || [];
+        document.getElementById('plugins-table').innerHTML = `<table><thead><tr><th>Name</th><th>Version</th><th>Type</th><th>Description</th><th>Topics</th><th>Routes</th></tr></thead><tbody>${
+          plugins.map(p => `<tr><td>${p.name}</td><td>${p.version}</td><td><span class="badge badge-ok">${p.type}</span></td><td>${p.description}</td><td>${(p.topics||[]).join(', ')}</td><td>${(p.routes||[]).map(r => r.method + ' ' + r.path).join(', ')}</td></tr>`).join('')
+        }</tbody></table>`;
+      } catch (e) { document.getElementById('plugins-table').innerHTML = '<div style="color:var(--text-muted)">Failed to load plugins.</div>'; }
+    }
+
+    // WebSocket
+    function connectWS() {
+      const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      ws = new WebSocket(proto + '//' + location.host + API + '/stream');
+      ws.onopen = () => {
+        document.getElementById('ws-status').className = 'status-dot connected';
+        document.getElementById('ws-label').textContent = 'Connected';
+        ws.send(JSON.stringify({ action: 'subscribe', topics: ['cost.idle.detected', 'budget.warning', 'budget.exceeded', 'cluster.change', 'plugin.status', 'system'] }));
+      };
+      ws.onclose = () => {
+        document.getElementById('ws-status').className = 'status-dot disconnected';
+        document.getElementById('ws-label').textContent = 'Disconnected';
+        setTimeout(connectWS, 3000);
+      };
+      ws.onmessage = (msg) => {
+        try {
+          const evt = JSON.parse(msg.data);
+          events.unshift(evt);
+          if (events.length > 50) events.pop();
+          renderEvents();
+        } catch (e) {}
+      };
+    }
+
+    function renderEvents() {
+      const el = document.getElementById('events-list');
+      el.innerHTML = events.map(e => {
+        const t = new Date(e.timestamp).toLocaleTimeString();
+        return `<div class="event-item"><span class="event-time">${t}</span><span class="event-topic">${e.topic}</span><span>${e.type}</span></div>`;
+      }).join('');
+    }
+
+    connectWS();
+    loadDashboard();
+  </script>
+</body>
+</html>

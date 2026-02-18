@@ -1,0 +1,39 @@
+replicaCount: 1
+
+image:
+  repository: finguard
+  tag: latest
+  pullPolicy: IfNotPresent
+
+service:
+  type: ClusterIP
+  port: 8080
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+env:
+  FINGUARD_ADDR: ":8080"
+  OPENCOST_URL: "http://opencost.opencost.svc.cluster.local:9003"
+  FINGUARD_LOG_LEVEL: "info"
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+rbac:
+  create: true
+
+opencost:
+  enabled: true
+  url: "http://opencost.opencost.svc.cluster.local:9003"
+
+plugins:
+  dir: /opt/finguard/plugins/bin
+  configDir: /opt/finguard/plugins/config

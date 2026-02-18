@@ -1,0 +1,66 @@
+syntax = "proto3";
+
+package finguard.plugin.v1;
+
+option go_package = "github.com/inelson/finguard/pkg/plugin/proto";
+
+import "google/protobuf/timestamp.proto";
+
+service FinGuardPlugin {
+  rpc GetMetadata(Empty) returns (PluginMetadata);
+  rpc Initialize(InitRequest) returns (InitResponse);
+  rpc Execute(ExecuteRequest) returns (ExecuteResponse);
+  rpc StreamEvents(EventSubscription) returns (stream Event);
+  rpc Shutdown(Empty) returns (Empty);
+}
+
+message Empty {}
+
+message PluginMetadata {
+  string name = 1;
+  string version = 2;
+  string description = 3;
+  string type = 4;
+  repeated string topics = 5;
+  repeated Route routes = 6;
+}
+
+message Route {
+  string method = 1;
+  string path = 2;
+  string description = 3;
+}
+
+message InitRequest {
+  bytes config = 1;
+  string opencost_url = 2;
+}
+
+message InitResponse {
+  bool success = 1;
+  string error = 2;
+}
+
+message ExecuteRequest {
+  string action = 1;
+  map<string, string> params = 2;
+}
+
+message ExecuteResponse {
+  bytes data = 1;
+  string content_type = 2;
+  int32 status_code = 3;
+  string error = 4;
+}
+
+message EventSubscription {
+  repeated string topics = 1;
+}
+
+message Event {
+  string type = 1;
+  string topic = 2;
+  google.protobuf.Timestamp timestamp = 3;
+  string source = 4;
+  bytes payload = 5;
+}

@@ -1,0 +1,18 @@
+{
+  "description": "Default pricing configuration for FinGuard. Used when no cloud provider billing integration is available.",
+  "currency": "USD",
+  "nodePricing": {
+    "cpuPerHour": 0.031611,
+    "ramGBPerHour": 0.004237,
+    "gpuPerHour": 0.95
+  },
+  "storagePricing": {
+    "perGBMonthStandard": 0.04,
+    "perGBMonthSSD": 0.17
+  },
+  "networkPricing": {
+    "perGBEgressInterZone": 0.01,
+    "perGBEgressInterRegion": 0.02,
+    "perGBEgressInternet": 0.09
+  }
+}

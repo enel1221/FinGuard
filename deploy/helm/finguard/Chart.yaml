@@ -1,0 +1,16 @@
+apiVersion: v2
+name: finguard
+description: A modular FinOps tool for Kubernetes cost management
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+keywords:
+  - finops
+  - kubernetes
+  - cost-management
+  - opencost
+maintainers:
+  - name: inelson
+home: https://github.com/inelson/finguard
+sources:
+  - https://github.com/inelson/finguard
