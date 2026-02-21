@@ -1,0 +1,856 @@
+basePath: /api/v1
+definitions:
+  api.ClusterSummary:
+    properties:
+      namespaceCount:
+        type: integer
+      namespaces:
+        items:
+          $ref: '#/definitions/api.NamespaceInfo'
+        type: array
+      nodeCount:
+        type: integer
+      nodes:
+        items:
+          $ref: '#/definitions/api.NodeInfo'
+        type: array
+      podCount:
+        type: integer
+    type: object
+  api.HealthResponse:
+    properties:
+      services:
+        additionalProperties:
+          type: string
+        type: object
+      status:
+        type: string
+      version:
+        type: string
+    type: object
+  api.NamespaceInfo:
+    properties:
+      annotations:
+        additionalProperties:
+          type: string
+        type: object
+      costCenter:
+        type: string
+      labels:
+        additionalProperties:
+          type: string
+        type: object
+      name:
+        type: string
+      team:
+        type: string
+    type: object
+  api.NodeInfo:
+    properties:
+      allocatableCPU:
+        type: string
+      allocatableMemory:
+        type: string
+      capacityCPU:
+        type: string
+      capacityMemory:
+        type: string
+      instanceType:
+        type: string
+      labels:
+        additionalProperties:
+          type: string
+        type: object
+      name:
+        type: string
+      region:
+        type: string
+      zone:
+        type: string
+    type: object
+  models.CostSource:
+    properties:
+      config:
+        type: object
+      createdAt:
+        type: string
+      enabled:
+        type: boolean
+      id:
+        type: string
+      lastCollectedAt:
+        type: string
+      name:
+        type: string
+      projectId:
+        type: string
+      type:
+        $ref: '#/definitions/models.CostSourceType'
+      updatedAt:
+        type: string
+    type: object
+  models.CostSourceType:
+    enum:
+    - aws_account
+    - azure_subscription
+    - gcp_project
+    - kubernetes
+    - plugin
+    type: string
+    x-enum-varnames:
+    - CostSourceAWS
+    - CostSourceAzure
+    - CostSourceGCP
+    - CostSourceKubernetes
+    - CostSourcePlugin
+  models.Project:
+    properties:
+      createdAt:
+        type: string
+      description:
+        type: string
+      id:
+        type: string
+      name:
+        type: string
+      updatedAt:
+        type: string
+    type: object
+  models.ProjectRole:
+    properties:
+      projectId:
+        type: string
+      role:
+        $ref: '#/definitions/models.Role'
+      subjectId:
+        type: string
+      subjectType:
+        $ref: '#/definitions/models.SubjectType'
+    type: object
+  models.Role:
+    enum:
+    - platform-admin
+    - admin
+    - editor
+    - viewer
+    type: string
+    x-enum-varnames:
+    - RolePlatformAdmin
+    - RoleAdmin
+    - RoleEditor
+    - RoleViewer
+  models.SubjectType:
+    enum:
+    - user
+    - group
+    type: string
+    x-enum-varnames:
+    - SubjectUser
+    - SubjectGroup
+  store.CostSummary:
+    properties:
+      recordCount:
+        type: integer
+      totalAmortized:
+        type: number
+      totalAmortizedNet:
+        type: number
+      totalListCost:
+        type: number
+      totalNetCost:
+        type: number
+    type: object
+host: localhost:8080
+info:
+  contact: {}
+  description: FinGuard cloud cost management platform API.
+  title: FinGuard API
+  version: "1.0"
+paths:
+  /cluster:
+    get:
+      description: Returns node, pod, and namespace counts with details
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.ClusterSummary'
+        "503":
+          description: Service Unavailable
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - SessionAuth: []
+      summary: Get cluster summary
+      tags:
+      - Cluster
+  /health:
+    get:
+      description: Returns health status of all backend services (OpenCost, cluster
+        cache)
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/api.HealthResponse'
+      security:
+      - SessionAuth: []
+      summary: Detailed health check
+      tags:
+      - Health
+  /healthz:
+    get:
+      description: Returns 200 if the server is alive
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              status:
+                type: string
+            type: object
+      summary: Liveness probe
+      tags:
+      - Health
+  /me:
+    get:
+      description: Returns the authenticated user's profile from the OIDC session
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              displayName:
+                type: string
+              email:
+                type: string
+              groups:
+                items:
+                  type: string
+                type: array
+              userId:
+                type: string
+            type: object
+        "401":
+          description: Unauthorized
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - SessionAuth: []
+      summary: Get current user info
+      tags:
+      - Auth
+  /namespaces:
+    get:
+      description: Returns all Kubernetes namespaces with labels, cost center, and
+        team info
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/api.NamespaceInfo'
+            type: array
+        "503":
+          description: Service Unavailable
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - SessionAuth: []
+      summary: List namespaces
+      tags:
+      - Cluster
+  /nodes:
+    get:
+      description: Returns all Kubernetes nodes with instance type, region, and capacity
+        info
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            items:
+              $ref: '#/definitions/api.NodeInfo'
+            type: array
+        "503":
+          description: Service Unavailable
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - SessionAuth: []
+      summary: List nodes
+      tags:
+      - Cluster
+  /plugins:
+    get:
+      description: Returns metadata for all registered plugins
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              plugins:
+                items:
+                  type: object
+                type: array
+            type: object
+      security:
+      - SessionAuth: []
+      summary: List plugins
+      tags:
+      - Plugins
+  /projects:
+    get:
+      description: Returns all projects
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              projects:
+                items:
+                  $ref: '#/definitions/models.Project'
+                type: array
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - SessionAuth: []
+      summary: List projects
+      tags:
+      - Projects
+    post:
+      consumes:
+      - application/json
+      description: Create a new project for organizing cost sources
+      parameters:
+      - description: Project fields
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            description:
+              type: string
+            name:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.Project'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - SessionAuth: []
+      summary: Create a project
+      tags:
+      - Projects
+  /projects/{projectID}:
+    delete:
+      description: Delete a project and all associated cost sources, members, and
+        costs
+      parameters:
+      - description: Project ID
+        in: path
+        name: projectID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              status:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - SessionAuth: []
+      summary: Delete a project
+      tags:
+      - Projects
+    get:
+      description: Returns a single project by ID
+      parameters:
+      - description: Project ID
+        in: path
+        name: projectID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Project'
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - SessionAuth: []
+      summary: Get a project
+      tags:
+      - Projects
+    put:
+      consumes:
+      - application/json
+      description: Update an existing project's name and/or description
+      parameters:
+      - description: Project ID
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: Fields to update
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            description:
+              type: string
+            name:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.Project'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - SessionAuth: []
+      summary: Update a project
+      tags:
+      - Projects
+  /projects/{projectID}/costs:
+    get:
+      description: Returns aggregated cost summary for a project
+      parameters:
+      - description: Project ID
+        in: path
+        name: projectID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/store.CostSummary'
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - SessionAuth: []
+      summary: Get project costs
+      tags:
+      - Costs
+  /projects/{projectID}/members:
+    get:
+      description: Returns all role assignments for a project
+      parameters:
+      - description: Project ID
+        in: path
+        name: projectID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              members:
+                items:
+                  $ref: '#/definitions/models.ProjectRole'
+                type: array
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - SessionAuth: []
+      summary: List project members
+      tags:
+      - Members
+    post:
+      consumes:
+      - application/json
+      description: Assign a role to a user or group for a project
+      parameters:
+      - description: Project ID
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: Member role assignment
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            role:
+              type: string
+            subjectId:
+              type: string
+            subjectType:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.ProjectRole'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - SessionAuth: []
+      summary: Add a project member
+      tags:
+      - Members
+  /projects/{projectID}/members/{subjectID}:
+    delete:
+      description: Remove a user or group role assignment from a project
+      parameters:
+      - description: Project ID
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: Subject ID (user or group)
+        in: path
+        name: subjectID
+        required: true
+        type: string
+      - default: user
+        description: 'Subject type: user or group'
+        in: query
+        name: subjectType
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              status:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - SessionAuth: []
+      summary: Remove a project member
+      tags:
+      - Members
+  /projects/{projectID}/sources:
+    get:
+      description: Returns all cost sources for a project
+      parameters:
+      - description: Project ID
+        in: path
+        name: projectID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              sources:
+                items:
+                  $ref: '#/definitions/models.CostSource'
+                type: array
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - SessionAuth: []
+      summary: List cost sources
+      tags:
+      - CostSources
+    post:
+      consumes:
+      - application/json
+      description: Add a new cost source (AWS, Azure, GCP, Kubernetes, or plugin)
+        to a project
+      parameters:
+      - description: Project ID
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: Cost source fields
+        in: body
+        name: body
+        required: true
+        schema:
+          properties:
+            config:
+              type: object
+            enabled:
+              type: boolean
+            name:
+              type: string
+            type:
+              type: string
+          type: object
+      produces:
+      - application/json
+      responses:
+        "201":
+          description: Created
+          schema:
+            $ref: '#/definitions/models.CostSource'
+        "400":
+          description: Bad Request
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - SessionAuth: []
+      summary: Create a cost source
+      tags:
+      - CostSources
+  /projects/{projectID}/sources/{sourceID}:
+    delete:
+      description: Remove a cost source from a project
+      parameters:
+      - description: Project ID
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: Cost source ID
+        in: path
+        name: sourceID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              status:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - SessionAuth: []
+      summary: Delete a cost source
+      tags:
+      - CostSources
+    get:
+      description: Returns a single cost source by ID
+      parameters:
+      - description: Project ID
+        in: path
+        name: projectID
+        required: true
+        type: string
+      - description: Cost source ID
+        in: path
+        name: sourceID
+        required: true
+        type: string
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            $ref: '#/definitions/models.CostSource'
+        "404":
+          description: Not Found
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+        "500":
+          description: Internal Server Error
+          schema:
+            properties:
+              error:
+                type: string
+            type: object
+      security:
+      - SessionAuth: []
+      summary: Get a cost source
+      tags:
+      - CostSources
+  /readyz:
+    get:
+      description: Returns 200 when the server and its dependencies are ready to serve
+        traffic
+      produces:
+      - application/json
+      responses:
+        "200":
+          description: OK
+          schema:
+            properties:
+              status:
+                type: string
+            type: object
+        "503":
+          description: Service Unavailable
+          schema:
+            properties:
+              status:
+                type: string
+            type: object
+      summary: Readiness probe
+      tags:
+      - Health
+securityDefinitions:
+  SessionAuth:
+    in: cookie
+    name: finguard_session
+    type: apiKey
+swagger: "2.0"

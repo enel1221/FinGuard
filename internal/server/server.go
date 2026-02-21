@@ -22,6 +22,7 @@ import (
 	"github.com/inelson/finguard/internal/stream"
 	"github.com/inelson/finguard/pkg/api"
 	"github.com/inelson/finguard/pkg/event"
+	httpSwagger "github.com/swaggo/http-swagger/v2"
 )
 
 type Server struct {
@@ -125,6 +126,8 @@ func (s *Server) routes() chi.Router {
 		}
 	})
 
+	r.Get("/swagger/*", httpSwagger.WrapHandler)
+
 	// Serve embedded frontend SPA
 	if s.frontendFS != nil {
 		fileServer := http.FileServer(http.FS(s.frontendFS))
@@ -150,6 +153,14 @@ func (s *Server) Shutdown(ctx context.Context) error {
 	return s.http.Shutdown(ctx)
 }
 
+// @Summary      Get current user info
+// @Description  Returns the authenticated user's profile from the OIDC session
+// @Tags         Auth
+// @Produce      json
+// @Success      200  {object}  object{userId=string,email=string,displayName=string,groups=[]string}
+// @Failure      401  {object}  object{error=string}
+// @Security     SessionAuth
+// @Router       /me [get]
 func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) {
 	if s.auth != nil {
 		s.auth.HandleUserInfo(w, r)
@@ -158,10 +169,23 @@ func (s *Server) handleMe(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "auth disabled"})
 }
 
+// @Summary      Liveness probe
+// @Description  Returns 200 if the server is alive
+// @Tags         Health
+// @Produce      json
+// @Success      200  {object}  object{status=string}
+// @Router       /healthz [get]
 func (s *Server) handleHealthz(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]string{"status": "ok"})
 }
 
+// @Summary      Readiness probe
+// @Description  Returns 200 when the server and its dependencies are ready to serve traffic
+// @Tags         Health
+// @Produce      json
+// @Success      200  {object}  object{status=string}
+// @Failure      503  {object}  object{status=string}
+// @Router       /readyz [get]
 func (s *Server) handleReadyz(w http.ResponseWriter, r *http.Request) {
 	ready := true
 	if s.cache != nil && !s.cache.IsReady() {
@@ -174,6 +198,13 @@ func (s *Server) handleReadyz(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// @Summary      Detailed health check
+// @Description  Returns health status of all backend services (OpenCost, cluster cache)
+// @Tags         Health
+// @Produce      json
+// @Success      200  {object}  api.HealthResponse
+// @Security     SessionAuth
+// @Router       /health [get]
 func (s *Server) handleDetailedHealth(w http.ResponseWriter, r *http.Request) {
 	services := map[string]string{}
 	if s.proxy != nil {
@@ -196,6 +227,14 @@ func (s *Server) handleDetailedHealth(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// @Summary      Get cluster summary
+// @Description  Returns node, pod, and namespace counts with details
+// @Tags         Cluster
+// @Produce      json
+// @Success      200  {object}  api.ClusterSummary
+// @Failure      503  {object}  object{error=string}
+// @Security     SessionAuth
+// @Router       /cluster [get]
 func (s *Server) handleClusterSummary(w http.ResponseWriter, r *http.Request) {
 	if s.cache == nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "cluster cache not available"})
@@ -224,6 +263,14 @@ func (s *Server) handleClusterSummary(w http.ResponseWriter, r *http.Request) {
 	})
 }
 
+// @Summary      List namespaces
+// @Description  Returns all Kubernetes namespaces with labels, cost center, and team info
+// @Tags         Cluster
+// @Produce      json
+// @Success      200  {array}   api.NamespaceInfo
+// @Failure      503  {object}  object{error=string}
+// @Security     SessionAuth
+// @Router       /namespaces [get]
 func (s *Server) handleNamespaces(w http.ResponseWriter, r *http.Request) {
 	if s.cache == nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "cluster cache not available"})
@@ -237,6 +284,14 @@ func (s *Server) handleNamespaces(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, infos)
 }
 
+// @Summary      List nodes
+// @Description  Returns all Kubernetes nodes with instance type, region, and capacity info
+// @Tags         Cluster
+// @Produce      json
+// @Success      200  {array}   api.NodeInfo
+// @Failure      503  {object}  object{error=string}
+// @Security     SessionAuth
+// @Router       /nodes [get]
 func (s *Server) handleNodes(w http.ResponseWriter, r *http.Request) {
 	if s.cache == nil {
 		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "cluster cache not available"})
@@ -307,6 +362,13 @@ func (s *Server) writePump(c *stream.Client) {
 	}
 }
 
+// @Summary      List plugins
+// @Description  Returns metadata for all registered plugins
+// @Tags         Plugins
+// @Produce      json
+// @Success      200  {object}  object{plugins=[]object}
+// @Security     SessionAuth
+// @Router       /plugins [get]
 func (s *Server) handleListPlugins(w http.ResponseWriter, r *http.Request) {
 	if s.pluginMgr == nil {
 		writeJSON(w, http.StatusOK, map[string]any{"plugins": []any{}})

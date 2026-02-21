@@ -10,6 +10,17 @@ import (
 	"github.com/inelson/finguard/internal/store"
 )
 
+// @Summary      Create a project
+// @Description  Create a new project for organizing cost sources
+// @Tags         Projects
+// @Accept       json
+// @Produce      json
+// @Param        body  body      object{name=string,description=string}  true  "Project fields"
+// @Success      201   {object}  models.Project
+// @Failure      400   {object}  object{error=string}
+// @Failure      500   {object}  object{error=string}
+// @Security     SessionAuth
+// @Router       /projects [post]
 func (s *Server) handleCreateProject(w http.ResponseWriter, r *http.Request) {
 	var req struct {
 		Name        string `json:"name"`
@@ -37,6 +48,16 @@ func (s *Server) handleCreateProject(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusCreated, project)
 }
 
+// @Summary      Get a project
+// @Description  Returns a single project by ID
+// @Tags         Projects
+// @Produce      json
+// @Param        projectID  path      string  true  "Project ID"
+// @Success      200        {object}  models.Project
+// @Failure      404        {object}  object{error=string}
+// @Failure      500        {object}  object{error=string}
+// @Security     SessionAuth
+// @Router       /projects/{projectID} [get]
 func (s *Server) handleGetProject(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "projectID")
 	project, err := s.store.GetProject(r.Context(), id)
@@ -52,6 +73,14 @@ func (s *Server) handleGetProject(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, project)
 }
 
+// @Summary      List projects
+// @Description  Returns all projects
+// @Tags         Projects
+// @Produce      json
+// @Success      200  {object}  object{projects=[]models.Project}
+// @Failure      500  {object}  object{error=string}
+// @Security     SessionAuth
+// @Router       /projects [get]
 func (s *Server) handleListProjects(w http.ResponseWriter, r *http.Request) {
 	projects, err := s.store.ListProjects(r.Context())
 	if err != nil {
@@ -65,6 +94,19 @@ func (s *Server) handleListProjects(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"projects": projects})
 }
 
+// @Summary      Update a project
+// @Description  Update an existing project's name and/or description
+// @Tags         Projects
+// @Accept       json
+// @Produce      json
+// @Param        projectID  path      string                                   true  "Project ID"
+// @Param        body       body      object{name=string,description=string}   true  "Fields to update"
+// @Success      200        {object}  models.Project
+// @Failure      400        {object}  object{error=string}
+// @Failure      404        {object}  object{error=string}
+// @Failure      500        {object}  object{error=string}
+// @Security     SessionAuth
+// @Router       /projects/{projectID} [put]
 func (s *Server) handleUpdateProject(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "projectID")
 
@@ -104,6 +146,15 @@ func (s *Server) handleUpdateProject(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, existing)
 }
 
+// @Summary      Delete a project
+// @Description  Delete a project and all associated cost sources, members, and costs
+// @Tags         Projects
+// @Produce      json
+// @Param        projectID  path      string  true  "Project ID"
+// @Success      200        {object}  object{status=string}
+// @Failure      500        {object}  object{error=string}
+// @Security     SessionAuth
+// @Router       /projects/{projectID} [delete]
 func (s *Server) handleDeleteProject(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "projectID")
 	if err := s.store.DeleteProject(r.Context(), id); err != nil {
@@ -116,6 +167,18 @@ func (s *Server) handleDeleteProject(w http.ResponseWriter, r *http.Request) {
 
 // --- Cost Sources ---
 
+// @Summary      Create a cost source
+// @Description  Add a new cost source (AWS, Azure, GCP, Kubernetes, or plugin) to a project
+// @Tags         CostSources
+// @Accept       json
+// @Produce      json
+// @Param        projectID  path      string                                                   true  "Project ID"
+// @Param        body       body      object{type=string,name=string,config=object,enabled=bool}  true  "Cost source fields"
+// @Success      201        {object}  models.CostSource
+// @Failure      400        {object}  object{error=string}
+// @Failure      500        {object}  object{error=string}
+// @Security     SessionAuth
+// @Router       /projects/{projectID}/sources [post]
 func (s *Server) handleCreateCostSource(w http.ResponseWriter, r *http.Request) {
 	projectID := chi.URLParam(r, "projectID")
 
@@ -156,6 +219,15 @@ func (s *Server) handleCreateCostSource(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, http.StatusCreated, cs)
 }
 
+// @Summary      List cost sources
+// @Description  Returns all cost sources for a project
+// @Tags         CostSources
+// @Produce      json
+// @Param        projectID  path      string  true  "Project ID"
+// @Success      200        {object}  object{sources=[]models.CostSource}
+// @Failure      500        {object}  object{error=string}
+// @Security     SessionAuth
+// @Router       /projects/{projectID}/sources [get]
 func (s *Server) handleListCostSources(w http.ResponseWriter, r *http.Request) {
 	projectID := chi.URLParam(r, "projectID")
 	sources, err := s.store.ListCostSources(r.Context(), projectID)
@@ -170,6 +242,17 @@ func (s *Server) handleListCostSources(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, map[string]any{"sources": sources})
 }
 
+// @Summary      Get a cost source
+// @Description  Returns a single cost source by ID
+// @Tags         CostSources
+// @Produce      json
+// @Param        projectID  path      string  true  "Project ID"
+// @Param        sourceID   path      string  true  "Cost source ID"
+// @Success      200        {object}  models.CostSource
+// @Failure      404        {object}  object{error=string}
+// @Failure      500        {object}  object{error=string}
+// @Security     SessionAuth
+// @Router       /projects/{projectID}/sources/{sourceID} [get]
 func (s *Server) handleGetCostSource(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "sourceID")
 	cs, err := s.store.GetCostSource(r.Context(), id)
@@ -185,6 +268,16 @@ func (s *Server) handleGetCostSource(w http.ResponseWriter, r *http.Request) {
 	writeJSON(w, http.StatusOK, cs)
 }
 
+// @Summary      Delete a cost source
+// @Description  Remove a cost source from a project
+// @Tags         CostSources
+// @Produce      json
+// @Param        projectID  path      string  true  "Project ID"
+// @Param        sourceID   path      string  true  "Cost source ID"
+// @Success      200        {object}  object{status=string}
+// @Failure      500        {object}  object{error=string}
+// @Security     SessionAuth
+// @Router       /projects/{projectID}/sources/{sourceID} [delete]
 func (s *Server) handleDeleteCostSource(w http.ResponseWriter, r *http.Request) {
 	id := chi.URLParam(r, "sourceID")
 	if err := s.store.DeleteCostSource(r.Context(), id); err != nil {
@@ -197,6 +290,15 @@ func (s *Server) handleDeleteCostSource(w http.ResponseWriter, r *http.Request) 
 
 // --- Project Members ---
 
+// @Summary      List project members
+// @Description  Returns all role assignments for a project
+// @Tags         Members
+// @Produce      json
+// @Param        projectID  path      string  true  "Project ID"
+// @Success      200        {object}  object{members=[]models.ProjectRole}
+// @Failure      500        {object}  object{error=string}
+// @Security     SessionAuth
+// @Router       /projects/{projectID}/members [get]
 func (s *Server) handleListProjectMembers(w http.ResponseWriter, r *http.Request) {
 	projectID := chi.URLParam(r, "projectID")
 	roles, err := s.store.ListProjectRoles(r.Context(), projectID)
@@ -211,6 +313,18 @@ func (s *Server) handleListProjectMembers(w http.ResponseWriter, r *http.Request
 	writeJSON(w, http.StatusOK, map[string]any{"members": roles})
 }
 
+// @Summary      Add a project member
+// @Description  Assign a role to a user or group for a project
+// @Tags         Members
+// @Accept       json
+// @Produce      json
+// @Param        projectID  path      string                                                  true  "Project ID"
+// @Param        body       body      object{subjectType=string,subjectId=string,role=string}  true  "Member role assignment"
+// @Success      201        {object}  models.ProjectRole
+// @Failure      400        {object}  object{error=string}
+// @Failure      500        {object}  object{error=string}
+// @Security     SessionAuth
+// @Router       /projects/{projectID}/members [post]
 func (s *Server) handleAddProjectMember(w http.ResponseWriter, r *http.Request) {
 	projectID := chi.URLParam(r, "projectID")
 
@@ -239,6 +353,17 @@ func (s *Server) handleAddProjectMember(w http.ResponseWriter, r *http.Request) 
 	writeJSON(w, http.StatusCreated, pr)
 }
 
+// @Summary      Remove a project member
+// @Description  Remove a user or group role assignment from a project
+// @Tags         Members
+// @Produce      json
+// @Param        projectID    path      string  true   "Project ID"
+// @Param        subjectID    path      string  true   "Subject ID (user or group)"
+// @Param        subjectType  query     string  false  "Subject type: user or group"  default(user)
+// @Success      200          {object}  object{status=string}
+// @Failure      500          {object}  object{error=string}
+// @Security     SessionAuth
+// @Router       /projects/{projectID}/members/{subjectID} [delete]
 func (s *Server) handleRemoveProjectMember(w http.ResponseWriter, r *http.Request) {
 	projectID := chi.URLParam(r, "projectID")
 	subjectID := chi.URLParam(r, "subjectID")
@@ -258,6 +383,15 @@ func (s *Server) handleRemoveProjectMember(w http.ResponseWriter, r *http.Reques
 
 // --- Project Costs ---
 
+// @Summary      Get project costs
+// @Description  Returns aggregated cost summary for a project
+// @Tags         Costs
+// @Produce      json
+// @Param        projectID  path      string  true  "Project ID"
+// @Success      200        {object}  store.CostSummary
+// @Failure      500        {object}  object{error=string}
+// @Security     SessionAuth
+// @Router       /projects/{projectID}/costs [get]
 func (s *Server) handleGetProjectCosts(w http.ResponseWriter, r *http.Request) {
 	projectID := chi.URLParam(r, "projectID")
 

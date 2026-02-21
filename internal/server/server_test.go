@@ -25,7 +25,7 @@ func newTestServer() *Server {
 	logger := testLogger()
 	hub := stream.NewHub(logger)
 	proxy := opencostproxy.New(cfg.OpenCostURL, logger)
-	return New(cfg, hub, proxy, nil, nil, nil, logger)
+	return New(cfg, hub, proxy, nil, nil, nil, nil, nil, logger)
 }
 
 func TestHealthz(t *testing.T) {

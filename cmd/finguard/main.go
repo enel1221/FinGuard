@@ -29,6 +29,8 @@ import (
 	"github.com/inelson/finguard/plugins/budgets"
 	"github.com/inelson/finguard/plugins/costbreakdown"
 	"github.com/inelson/finguard/web"
+
+	_ "github.com/inelson/finguard/docs/swagger"
 )
 
 var (
@@ -37,6 +39,14 @@ var (
 	buildTime = "unknown"
 )
 
+// @title           FinGuard API
+// @version         1.0
+// @description     FinGuard cloud cost management platform API.
+// @host            localhost:8080
+// @BasePath        /api/v1
+// @securityDefinitions.apikey  SessionAuth
+// @in                          cookie
+// @name                        finguard_session
 func main() {
 	logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
 		Level: slog.LevelInfo,

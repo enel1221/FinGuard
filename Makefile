@@ -10,11 +10,14 @@ HELM_DIR     := deploy/helm/finguard
 PORT         ?= 8080
 AIR          := $(shell go env GOPATH)/bin/air
 
-.PHONY: all build test lint clean docker-build docker-push helm-lint helm-template proto run run-all dev frontend
+.PHONY: all build test lint clean docker-build docker-push helm-lint helm-template proto run run-all dev frontend swagger
 
 all: lint test build
 
-build:
+swagger:
+	swag init -g cmd/finguard/main.go -o docs/swagger --parseInternal --exclude headlamp,opencost
+
+build: swagger
 	CGO_ENABLED=0 go build $(GOFLAGS) -ldflags "$(LDFLAGS)" -o bin/$(BINARY) ./cmd/finguard
 
 run:
@@ -47,6 +50,7 @@ frontend:
 
 test:
 	go test -race -coverprofile=coverage.out ./...
+	cd web/frontend && npm run test
 
 lint:
 	golangci-lint run ./...

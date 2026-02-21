@@ -18,6 +18,7 @@ export default defineConfig({
       '/logout': 'http://localhost:8080',
       '/healthz': 'http://localhost:8080',
       '/plugins': 'http://localhost:8080',
+      '/swagger': 'http://localhost:8080',
     },
   },
   build: {

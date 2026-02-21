@@ -28,7 +28,7 @@ type CostSource struct {
 	ProjectID       string          `json:"projectId" db:"project_id"`
 	Type            CostSourceType  `json:"type" db:"type"`
 	Name            string          `json:"name" db:"name"`
-	Config          json.RawMessage `json:"config" db:"config_json"`
+	Config          json.RawMessage `json:"config" db:"config_json" swaggertype:"object"`
 	Enabled         bool            `json:"enabled" db:"enabled"`
 	LastCollectedAt *time.Time      `json:"lastCollectedAt,omitempty" db:"last_collected_at"`
 	CreatedAt       time.Time       `json:"createdAt" db:"created_at"`
@@ -75,7 +75,7 @@ type KubernetesConfig struct {
 
 type PluginConfig struct {
 	PluginName string          `json:"pluginName"`
-	Config     json.RawMessage `json:"config,omitempty"`
+	Config     json.RawMessage `json:"config,omitempty" swaggertype:"object"`
 }
 
 type User struct {
