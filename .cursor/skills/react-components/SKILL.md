@@ -216,3 +216,14 @@ Order:
 2. Third-party libraries (`@mui/*`, `react-router-dom`, `recharts`)
 3. Internal modules (`@/lib/*`, `@/redux/*`)
 4. Relative imports (sibling components)
+
+## Testing Requirements
+
+New components are not complete until they have passing tests. Follow the **testing** skill for patterns (Vitest, React Testing Library, `renderWithProviders`).
+
+When adding or modifying a component:
+
+1. Write a `ComponentName.test.tsx` file alongside the component.
+2. Test user-visible behavior: loading states, rendered content, error states, and empty states.
+3. Run `make test` and confirm all tests pass (backend + frontend).
+4. Do not consider the feature implemented until `make test` exits cleanly.

@@ -174,3 +174,5 @@ When adding a new endpoint, verify:
 - [ ] TypeScript types updated in `web/frontend/src/lib/api.ts`
 - [ ] URL follows conventions above (plural nouns, no verbs, correct nesting)
 - [ ] Response format matches the JSON standards in this doc (camelCase, `[]` not `null`, error shape)
+- [ ] Tests written for the handler (happy path + error cases) following the **testing** skill
+- [ ] `make test` passes with all backend and frontend tests green

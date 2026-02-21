@@ -239,3 +239,13 @@ func nullString(s string) sql.NullString { ... }
 ```
 
 Use these consistently rather than inlining UUID/time generation.
+
+## Testing Requirements
+
+New store methods are not complete until they have passing tests. Follow the **testing** skill for patterns (in-memory SQLite test store, table-driven tests).
+
+When adding or modifying a store method or migration:
+
+1. Write tests using `newTestStore(t)` covering the happy path and error/edge cases (not found, duplicates, cascading deletes).
+2. Run `make test` and confirm all tests pass (backend + frontend).
+3. Do not consider the feature implemented until `make test` exits cleanly.

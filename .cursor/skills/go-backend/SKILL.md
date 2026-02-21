@@ -271,3 +271,13 @@ Served at `/swagger/index.html` via `httpSwagger.WrapHandler` in `server.go`. Th
 - **`json.RawMessage` fields** cause swag parse errors. Always add `swaggertype:"object"` to the struct tag.
 - **The swag library version must match the CLI version.** Both should be v1.16.4+. If you see `unknown field LeftDelim` errors, run `go get github.com/swaggo/swag@v1.16.4`.
 - **The `--exclude` flag** in the Makefile prevents swag from scanning vendored/third-party dirs (`headlamp`, `opencost`).
+
+## Testing Requirements
+
+New backend features are not complete until they have passing tests. Follow the **testing** skill for patterns (table-driven tests, httptest, store tests).
+
+When adding or modifying a handler, store method, or any business logic:
+
+1. Write tests covering the happy path and key error cases.
+2. Run `make test` and confirm all tests pass (backend + frontend).
+3. Do not consider the feature implemented until `make test` exits cleanly.

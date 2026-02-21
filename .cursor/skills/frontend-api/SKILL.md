@@ -183,3 +183,13 @@ During development (`npm run dev`), the Vite dev server on port 3000 proxies the
 - `/plugins` -> `http://localhost:8080`
 
 No CORS configuration is needed in development.
+
+## Testing Requirements
+
+New API integrations are not complete until the corresponding components have passing tests. Follow the **testing** skill for patterns (Vitest, mocking the `api` module with `vi.mock`).
+
+When adding or modifying frontend API calls:
+
+1. Write component tests that mock `api` responses and verify rendering for success, loading, error, and empty states.
+2. Run `make test` and confirm all tests pass (backend + frontend).
+3. Do not consider the feature implemented until `make test` exits cleanly.
